@@ -11,8 +11,8 @@ import os
 
 
 # Put your email and password in these variables, make sure to have the quotation marks around them
-YOUR_EMAIL_ADDRESS = "budiryan@gmail.com"
-YOUR_PASSWORD = "Bud1ry@n"
+YOUR_EMAIL_ADDRESS = "bbudihaha@gmail.com"
+YOUR_PASSWORD = "budihaha12345"
 
 # Base URL
 BASE_URL = 'https://www.quora.com'
@@ -27,8 +27,7 @@ def login(driver):
     # Find sign-in by Google button and click it
     elem = driver.find_element_by_class_name("google_button")
     elem.click()
-    time.sleep(6)
-    print(driver.window_handles)
+    time.sleep(8)
     window_before = driver.window_handles[0]
     window_after = driver.window_handles[1]
 
@@ -41,7 +40,7 @@ def login(driver):
     print('Entering email...')
     emailInput.send_keys(YOUR_EMAIL_ADDRESS)
     emailSubmit = driver.find_element_by_class_name("rc-button-submit").click()
-    time.sleep(6)
+    time.sleep(4)
 
     wait.until(EC.presence_of_element_located((By.ID, "Passwd")))
 
@@ -52,11 +51,11 @@ def login(driver):
         pwInput.send_keys(YOUR_PASSWORD)
     except:
         print("FAIL")
-    time.sleep(5)
+    time.sleep(4)
 
     pwSubmit = driver.find_element_by_id("signIn").click()
 
-    time.sleep(10)
+    time.sleep(5)
 
     # need to switch to first window again
     driver.switch_to_window(window_before)
@@ -72,18 +71,32 @@ def main():
     login(driver)
 
     # load a list of top writers on Quora for scraping
-    try:
-        list_of_top_writers = json.load('user_links.json')
-    except:
-        print("Please supply the list of users file!")
+    list_of_top_writers = json.load(open(FILE_DIRECTORY))
 
     # Loop through all popular writers
     for writer_url in list_of_top_writers:
-        urllib.parse.urljoin(BASE_URL, writer_url)
+        url = urllib.parse.urljoin(BASE_URL, writer_url)
+        driver.get(url)
+        # have to scroll until the end of page
+        current_html = driver.find_element_by_class_name('ContentWrapper')
+        current_html = current_html.get_attribute('innerHTML')
+        stuck_value = 0
+        while(True):
+            prev_html = current_html
+            # scroll to the end of page and set some delay --> to get the questions
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            current_html = driver.find_element_by_class_name('ContentWrapper')
+            current_html = current_html.get_attribute("innerHTML")
+            time.sleep(5)
 
+            if stuck_value > 5:
+                break
 
+            if prev_html == current_html:
+                # if after scrolling nothing changes, that means it is stuck
+                stuck_value += 1
 
-
+            print('stuck_value: ', stuck_value)
 
     driver.close()
 
