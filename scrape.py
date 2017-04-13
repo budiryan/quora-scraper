@@ -33,7 +33,7 @@ def login(driver):
     # Find sign-in by Google button and click it
     elem = driver.find_element_by_class_name("google_button")
     elem.click()
-    time.sleep(5)
+    time.sleep(10)
     window_before = driver.window_handles[0]
     window_after = driver.window_handles[1]
 
@@ -68,6 +68,10 @@ def login(driver):
 
 
 def process_user(driver, writer_url):
+    '''
+    Processes each user's credential and their answers to questions.
+    Adding them to users.json and answers.json
+    '''
     url = urllib.parse.urljoin(BASE_URL, writer_url)
     driver.get(url)
     # have to scroll until the end of page
@@ -90,7 +94,7 @@ def process_user(driver, writer_url):
             # if after scrolling nothing changes, that means it is stuck
             stuck_value += 1
 
-        print('stuck_value: ', stuck_value)
+        # print('stuck_value: ', stuck_value)
 
     # have to get the info of each user
     name_and_signature = driver.find_element_by_class_name('ProfileNameAndSig')
@@ -116,13 +120,13 @@ def process_user(driver, writer_url):
     except:
         work = ''
 
-    num_answers = int(re.sub(',', '', driver.find_element_by_class_name('AnswersNavItem').find_element_by_class_name('list_count').text))
-    num_questions = int(re.sub(',', '', driver.find_element_by_class_name('QuestionsNavItem').find_element_by_class_name('list_count').text))
-    num_posts = int(re.sub(',', '', driver.find_element_by_class_name('PostsNavItem').find_element_by_class_name('list_count').text))
-    num_blogs = int(re.sub(',', '', driver.find_element_by_class_name('BlogsNavItem').find_element_by_class_name('list_count').text))
-    num_followers = int(re.sub(',', '', driver.find_element_by_class_name('FollowersNavItem').find_element_by_class_name('list_count').text))
-    num_following = int(re.sub(',', '', driver.find_element_by_class_name('FollowingNavItem').find_element_by_class_name('list_count').text))
-    num_topics = int(re.sub(',', '', driver.find_element_by_class_name('TopicsNavItem').find_element_by_class_name('list_count').text))
+    num_answers = int(re.sub('\D', '', driver.find_element_by_class_name('AnswersNavItem').find_element_by_class_name('list_count').text))
+    num_questions = int(re.sub('\D', '', driver.find_element_by_class_name('QuestionsNavItem').find_element_by_class_name('list_count').text))
+    num_posts = int(re.sub('\D', '', driver.find_element_by_class_name('PostsNavItem').find_element_by_class_name('list_count').text))
+    num_blogs = int(re.sub('\D', '', driver.find_element_by_class_name('BlogsNavItem').find_element_by_class_name('list_count').text))
+    num_followers = int(re.sub('\D', '', driver.find_element_by_class_name('FollowersNavItem').find_element_by_class_name('list_count').text))
+    num_following = int(re.sub('\D', '', driver.find_element_by_class_name('FollowingNavItem').find_element_by_class_name('list_count').text))
+    num_topics = int(re.sub('\D', '', driver.find_element_by_class_name('TopicsNavItem').find_element_by_class_name('list_count').text))
 
     users_result.append({
         'author_name': name,
@@ -140,51 +144,103 @@ def process_user(driver, writer_url):
     })
     with open(USER_OUTPUT_FILE, 'w') as f:
         json.dump(users_result, f, indent=4)
+        print('AUTHOR ADDED: ', name)
 
     answers = driver.find_element_by_class_name('layout_3col_center')
 
-    answer_links = answers.find_elements_by_class_name('answer_text')
+    # answer_links = answers.find_elements_by_class_name('question_link')
+    # print("length of answer_links are: ", len(answer_links))
+    answers_soup = BeautifulSoup(answers.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
+    '''
+    questions = soup.find_all('a', class_= 'question_link')
+    questionLinks = []
+    for q in questions:
+        questionLinks.append(q['href'])
+    '''
+    answers_links = answers_soup.find_all('a', class_='question_link')
+    answers_links_href = []
+    for a in answers_links:
+        answers_links_href.append(a['href'])
+
     # no answer at all, no need to collect anything
-    if len(answer_links) == 0:
+    if len(answers_links) == 0:
         return
-    driver.execute_script("window.scrollTo(0, 0);")
-    time.sleep(2)
-    for answer_link in answer_links:
-        driver.execute_script("window.scrollTo(0, 0);")
-        time.sleep(5)
-        answer_link.find_element_by_class_name('more_link').click()
-        time.sleep(5)
-        the_modal = driver.find_element_by_xpath("//*[@class='modal_overlay feed_desktop_modal']")
-        the_modal_soup = BeautifulSoup(the_modal.get_attribute('innerHTML').encode('utf-8'), 'html.parser')
 
-        # Collect the question string and the link
-        try:
-            answer_title_link = urllib.parse.urljoin(BASE_URL, the_modal_soup.find('a', class_='question_link')['href'])
-        except:
-            print(the_modal.get_attribute('innerHTML'))
+    for a in answers_links_href:
+        driver.get(urllib.parse.urljoin(BASE_URL, a))
+        oldAnsHtml = driver.find_element_by_class_name('content_page_feed_offset')
+        repeatCount = 0
+        # scroll until the end of the page to load any new answer
+        while(True):
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(5)
+            newAnsHtml = driver.find_element_by_class_name('content_page_feed_offset')
+            if oldAnsHtml == newAnsHtml:
+                repeatCount += 1
+            else:
+                repeatCount = 0
+                oldAnsHtml = newAnsHtml
+            if repeatCount > 3:
+                # Finish scrolling down
+                # print("Finished scrolling down: ", qLink)
+                break
 
-        answer_title = the_modal_soup.find('span', class_='question_text').text
+        # Process each answer, if an answer with the original author is found, break and finish
+        answers = driver.find_element_by_class_name('AnswerListDiv')
 
-        # Collect the answer
-        answer = ''
-        answer_html = the_modal_soup.find_all('p', class_='qtext_para')
-        for a in answer_html:
-            answer += a.text
+        # Get question text
+        question_text = driver.find_element_by_class_name('rendered_qtext').text.encode("utf-8")
+        answers_html = answers.get_attribute("innerHTML").encode("utf-8")
+        with open('test.html', 'w') as f:
+            f.write(answers_html.decode("utf-8"))
+        answers_soup = BeautifulSoup(answers_html, 'html.parser')
+        answer_divs = answers_soup.find_all('div', class_='Answer')
+        for answer_div in answer_divs:
+            answer_author_object = answer_div.find('a', class_='user')
+            if answer_author_object is None:
+                continue
+            answer_author_link = 'https://www.quora.com' + answer_author_object['href']
+            answer_author = answer_div.find('a', class_='user')
+            answer_author = answer_author_object.get_text()
+            the_answer = ''
+            answers_p = answer_div.find_all('p', class_='qtext_para')
+            for answer in answers_p:
+                the_answer += answer.get_text()
+            try:
+                answer_views = answer_div.find('span', class_='meta_num').get_text()
+                if 'k' in answer_views:
+                    answer_views = re.sub(r'\D', '', answer_views)
+                    answer_views = float(answer_views) * 1000
+                else:
+                    answer_views = re.sub(r'\D', '', answer_views)
+                answer_views = int(answer_views)
+            except:
+                answer_views = 0
+            # Get the number of upvotes of each answer
+            answer_upvotes = answer_div.find('span', class_='count').get_text()
+            if 'k' in answer_upvotes:
+                # answer_upvotes = answer_upvotes[0:len(answer_upvotes) - 1]
+                answer_upvotes = re.sub(r'\D', '', answer_upvotes)
+                answer_upvotes = float(answer_upvotes) * 1000
+            else:
+                answer_upvotes = re.sub(r'\D', '', answer_upvotes)
+            answer_upvotes = int(answer_upvotes)
+            if answer_author_link == url:
+                # save to file
+                answers_result.append({
+                    "answer": the_answer,
+                    "author": answer_author,
+                    "author_link": answer_author_link,
+                    "views": answer_views,
+                    "upvotes": answer_upvotes,
+                    "question_title": question_text.decode("utf-8"),
+                    "question_link": urllib.parse.urljoin(BASE_URL, a),
+                })
+                with open(ANSWER_OUTPUT_FILE, 'w') as f:
+                    json.dump(answers_result, f, indent=4)
+                    print('ANSWER ADDED: ', question_text.decode("utf-8"))
 
-        # Find the number of upvote for this answer
-        num_upvote = int(the_modal_soup.find('span', class_='count').text)
-
-        close_button = the_modal.find_element_by_class_name('modal_fixed_close')
-        close_button.click()
-        answers_result.append({
-            'title': answer_title,
-            'title_url': answer_title_link,
-            'author_url': url,
-            'answer': answer,
-            'num upvote': num_upvote
-        })
-        with open(ANSWER_OUTPUT_FILE, 'w') as f:
-            json.dump(answers_result, f, indent=4)
+                break
 
 
 def main():
@@ -199,9 +255,14 @@ def main():
     # load a list of top writers on Quora for scraping
     list_of_top_writers = json.load(open(FILE_DIRECTORY))
 
+    count_author = 0
     # Loop through all popular writers
     for writer_url in list_of_top_writers:
+        if count_author % 10 == 0:
+            print('Processed: ', count_author)
         process_user(driver, writer_url)
+        # TODO: get the following section of each user and process their data
+        count_author += 1
 
     # finish operation
     driver.close()
