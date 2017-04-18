@@ -42,7 +42,7 @@ def login(driver):
     # Find sign-in by Google button and click it
     elem = driver.find_element_by_class_name("google_button")
     elem.click()
-    time.sleep(10)
+    time.sleep(8)
     window_before = driver.window_handles[0]
     window_after = driver.window_handles[1]
 
@@ -163,82 +163,70 @@ def process_user(driver, writer_url):
     answers_links_href = []
     for a in answers_links:
         answers_links_href.append(a['href'])
-
     # no answer at all, no need to collect anything
     if len(answers_links) == 0:
         return
 
     for a in answers_links_href:
         driver.get(urllib.parse.urljoin(BASE_URL, a))
-        oldAnsHtml = driver.find_element_by_class_name('content_page_feed_offset')
-        repeatCount = 0
-        # scroll until the end of the page to load any new answer
-        while(True):
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(3)
-            newAnsHtml = driver.find_element_by_class_name('content_page_feed_offset')
-            if oldAnsHtml == newAnsHtml:
-                repeatCount += 1
-            else:
-                repeatCount = 0
-                oldAnsHtml = newAnsHtml
-            if repeatCount > 3:
-                break
-
-        # Process each answer, if an answer with the original author is found, break and finish
-        answers = driver.find_element_by_class_name('AnswerListDiv')
-
-        # Get question text
-        question_text = driver.find_element_by_class_name('rendered_qtext').text.encode("utf-8")
-        answers_html = answers.get_attribute("innerHTML").encode("utf-8")
-        answers_soup = BeautifulSoup(answers_html, 'html.parser')
-        answer_divs = answers_soup.find_all('div', class_='Answer')
-        for answer_div in answer_divs:
-            answer_author_object = answer_div.find('a', class_='user')
-            if answer_author_object is None:
-                continue
-            answer_author_link = 'https://www.quora.com' + answer_author_object['href']
-            answer_author = answer_div.find('a', class_='user')
-            answer_author = answer_author_object.get_text()
-            the_answer = ''
-            answers_p = answer_div.find_all('p', class_='qtext_para')
-            for answer in answers_p:
-                the_answer += answer.get_text()
+        flag = 0
+        while flag == 0:
+            # Get question text
+            # Process each answer, if an answer with the original author is found, break and finish
             try:
-                answer_views = answer_div.find('span', class_='meta_num').get_text()
-                if 'k' in answer_views:
-                    answer_views = re.sub(r'\D', '', answer_views)
-                    answer_views = float(answer_views) * 1000
-                else:
-                    answer_views = re.sub(r'\D', '', answer_views)
-                answer_views = int(answer_views)
+                answers = driver.find_element_by_class_name('AnswerListDiv')
             except:
-                answer_views = 0
-            # Get the number of upvotes of each answer
-            answer_upvotes = answer_div.find('span', class_='count').get_text()
-            if 'k' in answer_upvotes:
-                # answer_upvotes = answer_upvotes[0:len(answer_upvotes) - 1]
-                answer_upvotes = re.sub(r'\D', '', answer_upvotes)
-                answer_upvotes = float(answer_upvotes) * 1000
-            else:
-                answer_upvotes = re.sub(r'\D', '', answer_upvotes)
-            answer_upvotes = int(answer_upvotes)
-            if answer_author_link == url:
-                # save to file
-                answers_result.append({
-                    "answer": the_answer,
-                    "author": answer_author,
-                    "author_link": answer_author_link,
-                    "views": answer_views,
-                    "upvotes": answer_upvotes,
-                    "question_title": question_text.decode("utf-8"),
-                    "question_link": urllib.parse.urljoin(BASE_URL, a),
-                })
-                with open(ANSWER_OUTPUT_FILE, 'w') as f:
-                    json.dump(answers_result, f, indent=4)
-                    print('ANSWER ADDED: ', question_text.decode("utf-8"))
-
+                print('Page not found, skipping...')
                 break
+            question_text = driver.find_element_by_class_name('rendered_qtext').text.encode("utf-8")
+            answers_html = answers.get_attribute("innerHTML").encode("utf-8")
+            answers_soup = BeautifulSoup(answers_html, 'html.parser')
+            answer_divs = answers_soup.find_all('div', class_='Answer')
+            for answer_div in answer_divs:
+                answer_author_object = answer_div.find('a', class_='user')
+                if answer_author_object is None:
+                    continue
+                answer_author_link = 'https://www.quora.com' + answer_author_object['href']
+                if answer_author_link == url:
+                    answer_author = answer_div.find('a', class_='user')
+                    answer_author = answer_author_object.get_text()
+                    the_answer = answer_div.find('span', class_='rendered_qtext').get_text()
+                    try:
+                        answer_views = answer_div.find('span', class_='meta_num').get_text()
+                        if 'k' in answer_views:
+                            answer_views = re.sub(r'\D', '', answer_views)
+                            answer_views = float(answer_views) * 1000
+                        else:
+                            answer_views = re.sub(r'\D', '', answer_views)
+                        answer_views = int(answer_views)
+                    except:
+                        answer_views = 0
+                    # Get the number of upvotes of each answer
+                    answer_upvotes = answer_div.find('span', class_='count').get_text()
+                    if 'k' in answer_upvotes:
+                        # answer_upvotes = answer_upvotes[0:len(answer_upvotes) - 1]
+                        answer_upvotes = re.sub(r'\D', '', answer_upvotes)
+                        answer_upvotes = float(answer_upvotes) * 1000
+                    else:
+                        answer_upvotes = re.sub(r'\D', '', answer_upvotes)
+                    answer_upvotes = int(answer_upvotes)
+                    # save to file
+                    answers_result.append({
+                        "answer": the_answer,
+                        "author": answer_author,
+                        "author_link": answer_author_link,
+                        "views": answer_views,
+                        "upvotes": answer_upvotes,
+                        "question_title": question_text.decode("utf-8"),
+                        "question_link": urllib.parse.urljoin(BASE_URL, a),
+                    })
+                    with open(ANSWER_OUTPUT_FILE, 'w') as f:
+                        json.dump(answers_result, f, indent=4)
+                        print('ANSWER ADDED: ', question_text.decode("utf-8"))
+                        flag = 1
+                    break
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(5)
 
 
 def process_following(driver, writer_url):
@@ -284,7 +272,7 @@ def process_following(driver, writer_url):
 
 def main():
     # Initialize webdriver
-    driver = webdriver.Chrome()
+    driver = webdriver.PhantomJS()
     driver.maximize_window()
     driver.get('https://www.quora.com/')
 
