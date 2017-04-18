@@ -11,13 +11,14 @@ import os
 
 
 # Put your email and password in these variables, make sure to have the quotation marks around them
+# this is a dummy account
 YOUR_EMAIL_ADDRESS = "bbudihaha@gmail.com"
 YOUR_PASSWORD = "budihaha12345"
 
 # Base URL
 BASE_URL = 'https://www.quora.com'
 
-# File path
+# File paths
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 FILE_DIRECTORY = os.path.join(PROJECT_ROOT, 'user_links.json')
 USER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'users.json')
@@ -26,9 +27,17 @@ ANSWER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'answers.json')
 
 users_result = []
 answers_result = []
+following_list = []
+# load a list of top writers on Quora for scraping
+list_of_top_writers = json.load(open(FILE_DIRECTORY))
 
 
 def login(driver):
+    '''
+    - Input: webdriver
+    - desc: login to quora
+    - Output: void
+    '''
     wait = WebDriverWait(driver, 30)
     # Find sign-in by Google button and click it
     elem = driver.find_element_by_class_name("google_button")
@@ -45,7 +54,7 @@ def login(driver):
     emailInput = driver.find_element_by_xpath("//input[@id='Email']")
     print('Entering email...')
     emailInput.send_keys(YOUR_EMAIL_ADDRESS)
-    emailSubmit = driver.find_element_by_class_name("rc-button-submit").click()
+    driver.find_element_by_class_name("rc-button-submit").click()
     time.sleep(4)
 
     wait.until(EC.presence_of_element_located((By.ID, "Passwd")))
@@ -69,8 +78,10 @@ def login(driver):
 
 def process_user(driver, writer_url):
     '''
-    Processes each user's credential and their answers to questions.
-    Adding them to users.json and answers.json
+    - input: webdriver, the writer's url
+    - desc: Processes each user's credential and their answers to questions.
+            Adding them to users.json and answers.json
+    - output: void
     '''
     url = urllib.parse.urljoin(BASE_URL, writer_url)
     driver.get(url)
@@ -147,16 +158,7 @@ def process_user(driver, writer_url):
         print('AUTHOR ADDED: ', name)
 
     answers = driver.find_element_by_class_name('layout_3col_center')
-
-    # answer_links = answers.find_elements_by_class_name('question_link')
-    # print("length of answer_links are: ", len(answer_links))
     answers_soup = BeautifulSoup(answers.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
-    '''
-    questions = soup.find_all('a', class_= 'question_link')
-    questionLinks = []
-    for q in questions:
-        questionLinks.append(q['href'])
-    '''
     answers_links = answers_soup.find_all('a', class_='question_link')
     answers_links_href = []
     for a in answers_links:
@@ -173,7 +175,7 @@ def process_user(driver, writer_url):
         # scroll until the end of the page to load any new answer
         while(True):
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(5)
+            time.sleep(3)
             newAnsHtml = driver.find_element_by_class_name('content_page_feed_offset')
             if oldAnsHtml == newAnsHtml:
                 repeatCount += 1
@@ -181,8 +183,6 @@ def process_user(driver, writer_url):
                 repeatCount = 0
                 oldAnsHtml = newAnsHtml
             if repeatCount > 3:
-                # Finish scrolling down
-                # print("Finished scrolling down: ", qLink)
                 break
 
         # Process each answer, if an answer with the original author is found, break and finish
@@ -191,8 +191,6 @@ def process_user(driver, writer_url):
         # Get question text
         question_text = driver.find_element_by_class_name('rendered_qtext').text.encode("utf-8")
         answers_html = answers.get_attribute("innerHTML").encode("utf-8")
-        with open('test.html', 'w') as f:
-            f.write(answers_html.decode("utf-8"))
         answers_soup = BeautifulSoup(answers_html, 'html.parser')
         answer_divs = answers_soup.find_all('div', class_='Answer')
         for answer_div in answer_divs:
@@ -243,6 +241,47 @@ def process_user(driver, writer_url):
                 break
 
 
+def process_following(driver, writer_url):
+    '''
+    - Input: webdriver and a writer's url
+    - Desc: Get all the users that a user follow and add it to the list
+    - Output: void
+    '''
+    print('now processing following...')
+    url = urllib.parse.urljoin(BASE_URL, writer_url + '/following')
+    driver.get(url)
+    # do infinite scrolling to get all the followers
+    stuck_value = 0
+    # have to scroll until the end of page
+    current_html = driver.find_element_by_class_name('ContentWrapper')
+    current_html = current_html.get_attribute('innerHTML')
+
+    while(True):
+        prev_html = current_html
+        # scroll to the end of page and set some delay --> to get the users in the following section
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        current_html = driver.find_element_by_class_name('ContentWrapper')
+        current_html = current_html.get_attribute("innerHTML")
+        time.sleep(3)
+
+        if stuck_value > 3:
+            break
+
+        if prev_html == current_html:
+            # if after scrolling nothing changes, that means it is stuck
+            stuck_value += 1
+            print('stuck value: ', stuck_value)
+
+    users = driver.find_element_by_class_name('layout_3col_center')
+    # answer_links = answers.find_elements_by_class_name('question_link')
+    # print("length of answer_links are: ", len(answer_links))
+    users_soup = BeautifulSoup(users.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
+    users_links = users_soup.find_all('a', class_='user')
+    for a in users_links:
+        if (a not in list_of_top_writers) and (a not in following_list):
+            following_list.append(a['href'])
+
+
 def main():
     # Initialize webdriver
     driver = webdriver.Chrome()
@@ -252,17 +291,18 @@ def main():
     # Login to Quora to scrape more information
     login(driver)
 
-    # load a list of top writers on Quora for scraping
-    list_of_top_writers = json.load(open(FILE_DIRECTORY))
-
     count_author = 0
     # Loop through all popular writers
     for writer_url in list_of_top_writers:
-        if count_author % 10 == 0:
-            print('Processed: ', count_author)
         process_user(driver, writer_url)
-        # TODO: get the following section of each user and process their data
+        process_following(driver, writer_url)
         count_author += 1
+        print('Authors processed so far: ', count_author)
+
+    print('now processing what is inside the following_list')
+    # Loop through all the following list
+    for writer_url in following_list:
+        process_user(driver, writer_url)
 
     # finish operation
     driver.close()
