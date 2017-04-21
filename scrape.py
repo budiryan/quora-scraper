@@ -170,13 +170,14 @@ def process_user(driver, writer_url):
     for a in answers_links_href:
         driver.get(urllib.parse.urljoin(BASE_URL, a))
         flag = 0
+        t = time.time()
         while flag == 0:
             # Get question text
             # Process each answer, if an answer with the original author is found, break and finish
             try:
                 answers = driver.find_element_by_class_name('AnswerListDiv')
             except:
-                print('Page not found, skipping...')
+                # print('Page not found, skipping...')
                 break
             question_text = driver.find_element_by_class_name('rendered_qtext').text.encode("utf-8")
             answers_html = answers.get_attribute("innerHTML").encode("utf-8")
@@ -187,6 +188,7 @@ def process_user(driver, writer_url):
                 if answer_author_object is None:
                     continue
                 answer_author_link = 'https://www.quora.com' + answer_author_object['href']
+               
                 if answer_author_link == url:
                     answer_author = answer_div.find('a', class_='user')
                     answer_author = answer_author_object.get_text()
@@ -227,6 +229,9 @@ def process_user(driver, writer_url):
                     break
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(5)
+            if (time.time() - t) > 15:
+                print('PROCESSED TOOK TOO LONG, BREAK!')
+                break	
 
 
 def process_following(driver, writer_url):
