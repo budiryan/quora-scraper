@@ -246,7 +246,11 @@ def process_following(driver, writer_url):
     # do infinite scrolling to get all the followers
     stuck_value = 0
     # have to scroll until the end of page
-    current_html = driver.find_element_by_class_name('ContentWrapper')
+    try:
+        current_html = driver.find_element_by_class_name('ContentWrapper')
+    except:
+        # user has no follower! just break
+        break
     current_html = current_html.get_attribute('innerHTML')
 
     while(True):
@@ -266,8 +270,6 @@ def process_following(driver, writer_url):
             print('stuck value: ', stuck_value)
 
     users = driver.find_element_by_class_name('layout_3col_center')
-    # answer_links = answers.find_elements_by_class_name('question_link')
-    # print("length of answer_links are: ", len(answer_links))
     users_soup = BeautifulSoup(users.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
     users_links = users_soup.find_all('a', class_='user')
     for a in users_links:
