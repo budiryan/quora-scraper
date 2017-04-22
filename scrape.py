@@ -105,39 +105,32 @@ def process_user(driver, writer_url):
             # if after scrolling nothing changes, that means it is stuck
             stuck_value += 1
 
-        # print('stuck_value: ', stuck_value)
-
     # have to get the info of each user
-    name_and_signature = driver.find_element_by_class_name('ProfileNameAndSig')
-    name = name_and_signature.find_element_by_class_name('user').text
     try:
+        name_and_signature = driver.find_element_by_class_name('ProfileNameAndSig')
+        name = name_and_signature.find_element_by_class_name('user').text
         description = name_and_signature.find_element_by_class_name('UserCredential').text
-    except:
         description = ''
-    credentials_and_highlights = driver.find_element_by_class_name('AboutSection')
-    try:
+        credentials_and_highlights = driver.find_element_by_class_name('AboutSection')
         education = credentials_and_highlights.find_element_by_class_name('SchoolCredentialListItem')
         education = re.sub(r'Studied at', '', education.find_element_by_class_name('UserCredential').text).strip()
-    except:
         education = ''
-    try:
         lives_in = credentials_and_highlights.find_element_by_class_name('LocationCredentialListItem')
         lives_in = re.sub(r'Lives in', '', lives_in.find_element_by_class_name('UserCredential').text).strip()
-    except:
         lives_in = ''
-    try:
         work = credentials_and_highlights.find_element_by_class_name('WorkCredentialListItem')
         work = work.find_element_by_class_name('UserCredential')
-    except:
         work = ''
 
-    num_answers = int(re.sub('\D', '', driver.find_element_by_class_name('AnswersNavItem').find_element_by_class_name('list_count').text))
-    num_questions = int(re.sub('\D', '', driver.find_element_by_class_name('QuestionsNavItem').find_element_by_class_name('list_count').text))
-    num_posts = int(re.sub('\D', '', driver.find_element_by_class_name('PostsNavItem').find_element_by_class_name('list_count').text))
-    num_blogs = int(re.sub('\D', '', driver.find_element_by_class_name('BlogsNavItem').find_element_by_class_name('list_count').text))
-    num_followers = int(re.sub('\D', '', driver.find_element_by_class_name('FollowersNavItem').find_element_by_class_name('list_count').text))
-    num_following = int(re.sub('\D', '', driver.find_element_by_class_name('FollowingNavItem').find_element_by_class_name('list_count').text))
-    num_topics = int(re.sub('\D', '', driver.find_element_by_class_name('TopicsNavItem').find_element_by_class_name('list_count').text))
+        num_answers = int(re.sub('\D', '', driver.find_element_by_class_name('AnswersNavItem').find_element_by_class_name('list_count').text))
+        num_questions = int(re.sub('\D', '', driver.find_element_by_class_name('QuestionsNavItem').find_element_by_class_name('list_count').text))
+        num_posts = int(re.sub('\D', '', driver.find_element_by_class_name('PostsNavItem').find_element_by_class_name('list_count').text))
+        num_blogs = int(re.sub('\D', '', driver.find_element_by_class_name('BlogsNavItem').find_element_by_class_name('list_count').text))
+        num_followers = int(re.sub('\D', '', driver.find_element_by_class_name('FollowersNavItem').find_element_by_class_name('list_count').text))
+        num_following = int(re.sub('\D', '', driver.find_element_by_class_name('FollowingNavItem').find_element_by_class_name('list_count').text))
+        num_topics = int(re.sub('\D', '', driver.find_element_by_class_name('TopicsNavItem').find_element_by_class_name('list_count').text))
+    except:
+        return
 
     users_result.append({
         'author_name': name,
@@ -157,10 +150,14 @@ def process_user(driver, writer_url):
         json.dump(users_result, f, indent=4)
         print('AUTHOR ADDED: ', name)
 
-    answers = driver.find_element_by_class_name('layout_3col_center')
-    answers_soup = BeautifulSoup(answers.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
-    answers_links = answers_soup.find_all('a', class_='question_link')
-    answers_links_href = []
+    try:
+        answers = driver.find_element_by_class_name('layout_3col_center')
+        answers_soup = BeautifulSoup(answers.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
+        answers_links = answers_soup.find_all('a', class_='question_link')
+        answers_links_href = []
+    except:
+        return
+
     for a in answers_links:
         answers_links_href.append(a['href'])
     # no answer at all, no need to collect anything
@@ -177,18 +174,19 @@ def process_user(driver, writer_url):
             try:
                 answers = driver.find_element_by_class_name('AnswerListDiv')
             except:
-                # print('Page not found, skipping...')
                 break
-            question_text = driver.find_element_by_class_name('rendered_qtext').text.encode("utf-8")
-            answers_html = answers.get_attribute("innerHTML").encode("utf-8")
-            answers_soup = BeautifulSoup(answers_html, 'html.parser')
-            answer_divs = answers_soup.find_all('div', class_='Answer')
+            try:
+                question_text = driver.find_element_by_class_name('rendered_qtext').text.encode("utf-8")
+                answers_html = answers.get_attribute("innerHTML").encode("utf-8")
+                answers_soup = BeautifulSoup(answers_html, 'html.parser')
+                answer_divs = answers_soup.find_all('div', class_='Answer')
+            except:
+                continue
             for answer_div in answer_divs:
                 answer_author_object = answer_div.find('a', class_='user')
                 if answer_author_object is None:
                     continue
                 answer_author_link = 'https://www.quora.com' + answer_author_object['href']
-               
                 if answer_author_link == url:
                     answer_author = answer_div.find('a', class_='user')
                     answer_author = answer_author_object.get_text()
@@ -203,8 +201,11 @@ def process_user(driver, writer_url):
                         answer_views = int(answer_views)
                     except:
                         answer_views = 0
-                    # Get the number of upvotes of each answer
-                    answer_upvotes = answer_div.find('span', class_='count').get_text()
+                    try:
+                        # Get the number of upvotes of each answer
+                        answer_upvotes = answer_div.find('span', class_='count').get_text()
+                    except:
+                        answer_upvotes = 0
                     if 'k' in answer_upvotes:
                         # answer_upvotes = answer_upvotes[0:len(answer_upvotes) - 1]
                         answer_upvotes = re.sub(r'\D', '', answer_upvotes)
@@ -229,7 +230,7 @@ def process_user(driver, writer_url):
                     break
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(5)
-            if (time.time() - t) > 15:
+            if (time.time() - t) > 20:
                 print('PROCESSED TOOK TOO LONG, BREAK!')
                 break	
 
