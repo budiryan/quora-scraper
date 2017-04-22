@@ -251,7 +251,7 @@ def process_following(driver, writer_url):
         current_html = driver.find_element_by_class_name('ContentWrapper')
     except:
         # user has no follower! just break
-        break
+        return
     current_html = current_html.get_attribute('innerHTML')
 
     while(True):
