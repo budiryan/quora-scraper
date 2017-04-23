@@ -22,8 +22,8 @@ BASE_URL = 'https://www.quora.com'
 # File paths
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 FILE_DIRECTORY = os.path.join(PROJECT_ROOT, 'user_links.json')
-USER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'users.json')
-ANSWER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'answers.json')
+USER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'users2.json')
+ANSWER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'answers2.json')
 
 
 users_result = []
@@ -148,7 +148,7 @@ def process_user(driver, writer_url):
     num_following = int(re.sub('\D', '', driver.find_element_by_class_name('FollowingNavItem').find_element_by_class_name('list_count').text))
     num_topics = int(re.sub('\D', '', driver.find_element_by_class_name('TopicsNavItem').find_element_by_class_name('list_count').text))
 
-    users_result.append({
+    new_data = {
         'author_name': name,
         'auhtor_url': url,
         'description': description,
@@ -161,9 +161,9 @@ def process_user(driver, writer_url):
         'num_followers': num_followers,
         'num_following': num_following,
         'num_topics': num_topics
-    })
-    with open(USER_OUTPUT_FILE, 'w') as f:
-        json.dump(users_result, f, indent=4)
+    }
+    with open(USER_OUTPUT_FILE, "a") as f:
+        f.write("{}\n".format(json.dumps(new_data)))
         print('AUTHOR ADDED: ', name)
 
     try:
@@ -233,8 +233,7 @@ def process_user(driver, writer_url):
                     else:
                         answer_upvotes = re.sub(r'\D', '', answer_upvotes)
                     answer_upvotes = int(answer_upvotes)
-                    # save to file
-                    answers_result.append({
+                    new_data = {
                         "answer": the_answer,
                         "author": answer_author,
                         "author_link": answer_author_link,
@@ -242,10 +241,10 @@ def process_user(driver, writer_url):
                         "upvotes": answer_upvotes,
                         "question_title": question_text.decode("utf-8"),
                         "question_link": urllib.parse.urljoin(BASE_URL, a),
-                    })
-                    with open(ANSWER_OUTPUT_FILE, 'w') as f:
-                        json.dump(answers_result, f, indent=4)
-                        print('ANSWER ADDED: ', question_text.decode("utf-8"))
+                    }
+                    with open(ANSWER_OUTPUT_FILE, "a") as f:
+                        f.write("{}\n".format(json.dumps(new_data)))
+                        # print('ANSWER ADDED: ', question_text.decode("utf-8"))
                         flag = 1
                     break
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
