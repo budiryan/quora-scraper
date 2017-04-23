@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 from bs4 import BeautifulSoup
 import urllib
 import time
@@ -67,9 +68,7 @@ def login(driver):
     except:
         print("FAIL")
     time.sleep(4)
-
     pwSubmit = driver.find_element_by_id("signIn").click()
-
     time.sleep(5)
 
     # need to switch to first window again
@@ -84,7 +83,13 @@ def process_user(driver, writer_url):
     - output: void
     '''
     url = urllib.parse.urljoin(BASE_URL, writer_url)
-    driver.get(url)
+    try:
+        print("Processing user: ", url)
+        driver.get(url)
+    except TimeoutException as e:
+        print("Process user took too long! return: " + str(e))
+        return
+
     # have to scroll until the end of page
     current_html = driver.find_element_by_class_name('ContentWrapper')
     current_html = current_html.get_attribute('innerHTML')
@@ -108,29 +113,40 @@ def process_user(driver, writer_url):
     # have to get the info of each user
     try:
         name_and_signature = driver.find_element_by_class_name('ProfileNameAndSig')
-        name = name_and_signature.find_element_by_class_name('user').text
+    except:
+        print("Cannot find name, skipping the user..")
+    name = name_and_signature.find_element_by_class_name('user').text
+    try:
         description = name_and_signature.find_element_by_class_name('UserCredential').text
+    except:
         description = ''
+    try:
         credentials_and_highlights = driver.find_element_by_class_name('AboutSection')
+    except:
+        pass
+    try:
         education = credentials_and_highlights.find_element_by_class_name('SchoolCredentialListItem')
         education = re.sub(r'Studied at', '', education.find_element_by_class_name('UserCredential').text).strip()
+    except:
         education = ''
+    try:
         lives_in = credentials_and_highlights.find_element_by_class_name('LocationCredentialListItem')
         lives_in = re.sub(r'Lives in', '', lives_in.find_element_by_class_name('UserCredential').text).strip()
+    except:
         lives_in = ''
+    try:
         work = credentials_and_highlights.find_element_by_class_name('WorkCredentialListItem')
         work = work.find_element_by_class_name('UserCredential')
+    except:
         work = ''
 
-        num_answers = int(re.sub('\D', '', driver.find_element_by_class_name('AnswersNavItem').find_element_by_class_name('list_count').text))
-        num_questions = int(re.sub('\D', '', driver.find_element_by_class_name('QuestionsNavItem').find_element_by_class_name('list_count').text))
-        num_posts = int(re.sub('\D', '', driver.find_element_by_class_name('PostsNavItem').find_element_by_class_name('list_count').text))
-        num_blogs = int(re.sub('\D', '', driver.find_element_by_class_name('BlogsNavItem').find_element_by_class_name('list_count').text))
-        num_followers = int(re.sub('\D', '', driver.find_element_by_class_name('FollowersNavItem').find_element_by_class_name('list_count').text))
-        num_following = int(re.sub('\D', '', driver.find_element_by_class_name('FollowingNavItem').find_element_by_class_name('list_count').text))
-        num_topics = int(re.sub('\D', '', driver.find_element_by_class_name('TopicsNavItem').find_element_by_class_name('list_count').text))
-    except:
-        return
+    num_answers = int(re.sub('\D', '', driver.find_element_by_class_name('AnswersNavItem').find_element_by_class_name('list_count').text))
+    num_questions = int(re.sub('\D', '', driver.find_element_by_class_name('QuestionsNavItem').find_element_by_class_name('list_count').text))
+    num_posts = int(re.sub('\D', '', driver.find_element_by_class_name('PostsNavItem').find_element_by_class_name('list_count').text))
+    num_blogs = int(re.sub('\D', '', driver.find_element_by_class_name('BlogsNavItem').find_element_by_class_name('list_count').text))
+    num_followers = int(re.sub('\D', '', driver.find_element_by_class_name('FollowersNavItem').find_element_by_class_name('list_count').text))
+    num_following = int(re.sub('\D', '', driver.find_element_by_class_name('FollowingNavItem').find_element_by_class_name('list_count').text))
+    num_topics = int(re.sub('\D', '', driver.find_element_by_class_name('TopicsNavItem').find_element_by_class_name('list_count').text))
 
     users_result.append({
         'author_name': name,
@@ -165,7 +181,11 @@ def process_user(driver, writer_url):
         return
 
     for a in answers_links_href:
-        driver.get(urllib.parse.urljoin(BASE_URL, a))
+        try:
+            driver.get(urllib.parse.urljoin(BASE_URL, a))
+        except TimeoutException as e:
+            print("Getting answer link took too long! return: " + str(e))
+            continue
         flag = 0
         t = time.time()
         while flag == 0:
@@ -243,7 +263,11 @@ def process_following(driver, writer_url):
     '''
     print('now processing following...')
     url = urllib.parse.urljoin(BASE_URL, writer_url + '/following')
-    driver.get(url)
+    try:
+        driver.get(url)
+    except TimeoutException as e:
+        print("Process following took too long! returning: " + str(e))
+        return
     # do infinite scrolling to get all the followers
     stuck_value = 0
     # have to scroll until the end of page
@@ -251,6 +275,7 @@ def process_following(driver, writer_url):
         current_html = driver.find_element_by_class_name('ContentWrapper')
     except:
         # user has no follower! just break
+        print("user has no follower, returning...:")
         return
     current_html = current_html.get_attribute('innerHTML')
 
@@ -283,6 +308,7 @@ def main():
     driver = webdriver.PhantomJS()
     driver.maximize_window()
     driver.get('https://www.quora.com/')
+    driver.set_page_load_timeout(30)
 
     # Login to Quora to scrape more information
     login(driver)
