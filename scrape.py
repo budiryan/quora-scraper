@@ -33,11 +33,8 @@ list_of_top_writers = []
 list_of_final_users = []
 
 # load a list of top writers on Quora for scraping
-# list_of_top_writers = json.load(open(FILE_DIRECTORY))
-with open(FILE_DIRECTORY, "r") as json_file:
-    for line in json_file:
-        data = json.loads(line)
-        list_of_top_writers.append(line)
+with open(FILE_DIRECTORY, "r") as f:
+    list_of_top_writers = json.load(f)
 
 print('There are: ', len(list_of_top_writers), ' top writers')
 
@@ -160,7 +157,7 @@ def process_user(driver, writer_url):
         prev_html = current_html
         # scroll to the end of page and set some delay --> to get the questions
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(5)
+        time.sleep(3)
         try:
             current_html = driver.find_element_by_class_name('ContentWrapper')
             current_html = current_html.get_attribute("innerHTML")
@@ -245,7 +242,7 @@ def process_user(driver, writer_url):
     # no answer at all, no need to collect anything
     if len(answers_links) == 0:
         return
-
+    print('begin collecting answers of: ', name)
     count_answers = 0
     for a in answers_links_href:
         try:
@@ -316,7 +313,7 @@ def process_following(driver, writer_url):
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         current_html = driver.find_element_by_class_name('ContentWrapper')
         current_html = current_html.get_attribute("innerHTML")
-        time.sleep(3)
+        time.sleep(5)
 
         if stuck_value > 3:
             break
@@ -326,9 +323,12 @@ def process_following(driver, writer_url):
             stuck_value += 1
             print('stuck value: ', stuck_value)
 
-    users = driver.find_element_by_class_name('layout_3col_center')
-    users_soup = BeautifulSoup(users.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
-    users_links = users_soup.find_all('a', class_='user')
+    try:
+        users = driver.find_element_by_class_name('layout_3col_center')
+        users_soup = BeautifulSoup(users.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
+        users_links = users_soup.find_all('a', class_='user')
+    except:
+        driver.save_screenshot('error.png')
     for a in users_links:
         if (a not in list_of_top_writers) and (a not in following_list):
             following_list.append(a['href'])
@@ -375,6 +375,7 @@ def main():
             data = json.loads(line)
             list_of_final_users.append(data)
 
+    print("Begin parsing the answers of all users")
     # begin processing all the users
     for user in list_of_final_users:
         process_user(driver, user)
