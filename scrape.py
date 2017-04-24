@@ -22,8 +22,8 @@ BASE_URL = 'https://www.quora.com'
 # File paths
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 FILE_DIRECTORY = os.path.join(PROJECT_ROOT, 'user_links.json')
-USER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'users2.json')
-ANSWER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'answers2.json')
+USER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'users.json')
+ANSWER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'answers.json')
 
 
 users_result = []
@@ -232,8 +232,7 @@ def process_user(driver, writer_url):
     if len(answers_links) == 0:
         return
 
-    count_answer = 0
-
+    count_answers = 0
     for a in answers_links_href:
         try:
             driver.get(urllib.parse.urljoin(BASE_URL, a))
@@ -268,9 +267,9 @@ def process_user(driver, writer_url):
             if prev_html == current_html:
                 stuck_value_answer += 1
             finish_scroll_answer = process_answer_divs(current_html, url, question_text, a)
-        count_answer += 1
-        if count_answer % 10 == 0:
-            print("Processed: ", count_answer, " answers")
+        count_answers += 1
+    print("Finished processing all answers for: ", name)
+    print("Number of answers retrieved: ", count_answers)
 
 
 def process_following(driver, writer_url):
@@ -279,7 +278,7 @@ def process_following(driver, writer_url):
     - Desc: Get all the users that a user follow and add it to the list
     - Output: void
     '''
-    print('now processing following...')
+    print('Now processing following section of: ', writer_url)
     url = urllib.parse.urljoin(BASE_URL, writer_url + '/following')
     try:
         driver.get(url)
