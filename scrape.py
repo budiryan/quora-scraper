@@ -102,14 +102,14 @@ def process_answer_divs(current_html, url, question_text, a):
             try:
                 # Get the number of upvotes of each answer
                 answer_upvotes = answer_div.find('span', class_='count').get_text()
+                if 'k' in answer_upvotes:
+                    # answer_upvotes = answer_upvotes[0:len(answer_upvotes) - 1]
+                    answer_upvotes = re.sub(r'\D', '', answer_upvotes)
+                    answer_upvotes = float(answer_upvotes) * 1000
+                else:
+                    answer_upvotes = re.sub(r'\D', '', answer_upvotes)
             except:
                 answer_upvotes = 0
-            if 'k' in answer_upvotes:
-                # answer_upvotes = answer_upvotes[0:len(answer_upvotes) - 1]
-                answer_upvotes = re.sub(r'\D', '', answer_upvotes)
-                answer_upvotes = float(answer_upvotes) * 1000
-            else:
-                answer_upvotes = re.sub(r'\D', '', answer_upvotes)
             answer_upvotes = int(answer_upvotes)
             new_data = {
                 "answer": the_answer,
