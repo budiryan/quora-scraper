@@ -24,13 +24,22 @@ PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 FILE_DIRECTORY = os.path.join(PROJECT_ROOT, 'user_links.json')
 USER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'users.json')
 ANSWER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'answers.json')
+FOLLOWING_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'following.json')
+FINAL_FILE = os.path.join(PROJECT_ROOT, 'final_users.json')
 
 
-users_result = []
-answers_result = []
 following_list = []
+list_of_top_writers = []
+list_of_final_users = []
+
 # load a list of top writers on Quora for scraping
-list_of_top_writers = json.load(open(FILE_DIRECTORY))
+# list_of_top_writers = json.load(open(FILE_DIRECTORY))
+with open(FILE_DIRECTORY, "r") as json_file:
+    for line in json_file:
+        data = json.loads(line)
+        list_of_top_writers.append(line)
+
+print('There are: ', len(list_of_top_writers), ' top writers')
 
 
 def login(driver):
@@ -323,6 +332,8 @@ def process_following(driver, writer_url):
     for a in users_links:
         if (a not in list_of_top_writers) and (a not in following_list):
             following_list.append(a['href'])
+    with open(FOLLOWING_OUTPUT_FILE, 'w') as f:
+        json.dump(following_list, f)
 
 
 def main():
@@ -336,17 +347,37 @@ def main():
     login(driver)
 
     count_author = 0
-    # Loop through all popular writers
-    for writer_url in list_of_top_writers:
-        process_user(driver, writer_url)
-        process_following(driver, writer_url)
-        count_author += 1
-        print('Authors processed so far: ', count_author)
 
-    print('now processing what is inside the following_list')
-    # Loop through all the following list
-    for writer_url in following_list:
-        process_user(driver, writer_url)
+    # Loop through all popular writers and get all their following section
+    for writer_url in list_of_top_writers:
+        process_following(driver, writer_url)
+        # process_user(driver, writer_url)
+        count_author += 1
+        print('Authors processed (for following section) so far: ', count_author)
+
+    # print('now processing what is inside the following_list')
+    # # Loop through all the following list
+    # for writer_url in following_list:
+    #     process_user(driver, writer_url)
+
+    # join the top writers + their following section to a file
+    for user in list_of_top_writers:
+        with open(FINAL_FILE, "a") as f:
+            f.write("{}\n".format(json.dumps(user)))
+    for user in following_list:
+        with open(FINAL_FILE, "a") as f:
+            f.write("{}\n".format(json.dumps(user)))
+
+    print("Reading the file for each user processing")
+
+    with open(FINAL_FILE, "r") as json_file:
+        for line in json_file:
+            data = json.loads(line)
+            list_of_final_users.append(data)
+
+    # begin processing all the users
+    for user in list_of_final_users:
+        process_user(driver, user)
 
     # finish operation
     driver.close()
