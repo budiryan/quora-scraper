@@ -152,8 +152,13 @@ def process_user(driver, writer_url):
         # scroll to the end of page and set some delay --> to get the questions
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(5)
-        current_html = driver.find_element_by_class_name('ContentWrapper')
-        current_html = current_html.get_attribute("innerHTML")
+        try:
+            current_html = driver.find_element_by_class_name('ContentWrapper')
+            current_html = current_html.get_attribute("innerHTML")
+        except:
+            print("Remote connection has been closed, try reconnecting again...")
+            driver.get(url)
+            continue
 
         if stuck_value > 3:
             break
