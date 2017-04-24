@@ -313,7 +313,7 @@ def process_following(driver, writer_url):
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         current_html = driver.find_element_by_class_name('ContentWrapper')
         current_html = current_html.get_attribute("innerHTML")
-        time.sleep(5)
+        time.sleep(3)
 
         if stuck_value > 3:
             break
@@ -327,18 +327,25 @@ def process_following(driver, writer_url):
         users = driver.find_element_by_class_name('layout_3col_center')
         users_soup = BeautifulSoup(users.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
         users_links = users_soup.find_all('a', class_='user')
+        # Find set difference
+        fake_links = []
+        fake_link_divs = users_soup.find_all('div', class_='UserFollowProofVisibleList')
+        for link in fake_link_divs:
+            fake_links.append(link.find('a')['href'])
+        users_links = [u['href'] for u in users_links if u['href'] not in fake_links]
     except:
-        driver.save_screenshot('error.png')
+        driver.save_screenshot('error:' + url + '.png')
     for a in users_links:
         if (a not in list_of_top_writers) and (a not in following_list):
-            following_list.append(a['href'])
+            following_list.append(a)
+    print('len of : ', len(following_list))
     with open(FOLLOWING_OUTPUT_FILE, 'w') as f:
-        json.dump(following_list, f)
+        json.dump(following_list, f, indent=4)
 
 
-def main():
+if __name__ == '__main__':
     # Initialize webdriver
-    driver = webdriver.PhantomJS()
+    driver = webdriver.Chrome()
     driver.maximize_window()
     driver.get('https://www.quora.com/')
     driver.set_page_load_timeout(30)
@@ -351,16 +358,12 @@ def main():
     # Loop through all popular writers and get all their following section
     for writer_url in list_of_top_writers:
         process_following(driver, writer_url)
-        # process_user(driver, writer_url)
         count_author += 1
-        print('Authors processed (for following section) so far: ', count_author)
+        if count_author % 20 == 0:
+            print('Authors processed (for following section) so far: ', count_author)
 
-    # print('now processing what is inside the following_list')
-    # # Loop through all the following list
-    # for writer_url in following_list:
-    #     process_user(driver, writer_url)
+    following_list = list(set(following_list))
 
-    # join the top writers + their following section to a file
     for user in list_of_top_writers:
         with open(FINAL_FILE, "a") as f:
             f.write("{}\n".format(json.dumps(user)))
@@ -382,7 +385,3 @@ def main():
 
     # finish operation
     driver.close()
-
-
-if __name__ == '__main__':
-    main()
