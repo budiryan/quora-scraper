@@ -345,7 +345,7 @@ def process_following(driver, writer_url):
 
 if __name__ == '__main__':
     # Initialize webdriver
-    driver = webdriver.Chrome()
+    driver = webdriver.PhantomJS()
     driver.maximize_window()
     driver.get('https://www.quora.com/')
     driver.set_page_load_timeout(30)
