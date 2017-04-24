@@ -321,7 +321,6 @@ def process_following(driver, writer_url):
         if prev_html == current_html:
             # if after scrolling nothing changes, that means it is stuck
             stuck_value += 1
-            print('stuck value: ', stuck_value)
 
     try:
         users = driver.find_element_by_class_name('layout_3col_center')
@@ -338,7 +337,6 @@ def process_following(driver, writer_url):
     for a in users_links:
         if (a not in list_of_top_writers) and (a not in following_list):
             following_list.append(a)
-    print('len of : ', len(following_list))
     with open(FOLLOWING_OUTPUT_FILE, 'w') as f:
         json.dump(following_list, f, indent=4)
 
