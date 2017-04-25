@@ -3,6 +3,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
+from pyvirtualdisplay import Display
 from bs4 import BeautifulSoup
 import urllib
 import time
@@ -22,6 +23,7 @@ BASE_URL = 'https://www.quora.com'
 # File paths
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 FILE_DIRECTORY = os.path.join(PROJECT_ROOT, 'user_links.json')
+FOLLOWING_DIRECTORY = os.path.join(PROJECT_ROOT, 'user_links2.json')
 USER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'users.json')
 ANSWER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'answers.json')
 FOLLOWING_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'following.json')
@@ -31,12 +33,14 @@ FINAL_FILE = os.path.join(PROJECT_ROOT, 'final_users.json')
 following_list = []
 list_of_top_writers = []
 list_of_final_users = []
+list_of_following_writers = []
 
 # load a list of top writers on Quora for scraping
 with open(FILE_DIRECTORY, "r") as f:
     list_of_top_writers = json.load(f)
 
-print('There are: ', len(list_of_top_writers), ' top writers')
+with open(FOLLOWING_DIRECTORY, "r") as f:
+    list_of_following_writers = json.load(f)
 
 
 def login(driver):
@@ -213,7 +217,7 @@ def process_user(driver, writer_url):
 
     new_data = {
         'author_name': name,
-        'auhtor_url': url,
+        'author_url': url,
         'description': description,
         'education': education,
         'lives_in': lives_in,
@@ -298,6 +302,7 @@ def process_following(driver, writer_url):
         return
     # do infinite scrolling to get all the followers
     stuck_value = 0
+    driver.save_screenshot("hehe.png")
     # have to scroll until the end of page
     try:
         current_html = driver.find_element_by_class_name('ContentWrapper')
@@ -322,64 +327,70 @@ def process_following(driver, writer_url):
             # if after scrolling nothing changes, that means it is stuck
             stuck_value += 1
 
-    try:
-        users = driver.find_element_by_class_name('layout_3col_center')
-        users_soup = BeautifulSoup(users.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
-        users_links = users_soup.find_all('a', class_='user')
-        # Find set difference
-        fake_links = []
-        fake_link_divs = users_soup.find_all('div', class_='UserFollowProofVisibleList')
-        for link in fake_link_divs:
-            fake_links.append(link.find('a')['href'])
-        users_links = [u['href'] for u in users_links if u['href'] not in fake_links]
-    except:
-        driver.save_screenshot('error:' + url + '.png')
+    users = driver.find_element_by_class_name('layout_3col_center')
+    users_soup = BeautifulSoup(users.get_attribute("innerHTML").encode("utf-8"), 'html.parser')
+    users_links = users_soup.find_all('a', class_='user')
+    # Find set difference
+    fake_links = []
+    fake_link_divs = users_soup.find_all('div', class_='UserFollowProofVisibleList')
+    for link in fake_link_divs:
+        fake_links.append(link.find('a')['href'])
+    users_links = [u['href'] for u in users_links if u['href'] not in fake_links]
     for a in users_links:
         if (a not in list_of_top_writers) and (a not in following_list):
-            following_list.append(a)
-    with open(FOLLOWING_OUTPUT_FILE, 'w') as f:
-        json.dump(following_list, f, indent=4)
+            with open(FOLLOWING_OUTPUT_FILE, "a") as f:
+                # Add to file
+                f.write("{}\n".format(json.dumps(a)))
 
 
 if __name__ == '__main__':
     # Initialize webdriver
-    driver = webdriver.PhantomJS()
-    driver.maximize_window()
-    driver.get('https://www.quora.com/')
-    driver.set_page_load_timeout(30)
+    with Display(visible=False):
+        driver = webdriver.Chrome()
+        driver.maximize_window()
+        driver.set_window_position(0, 0)
+        driver.get('https://www.quora.com/')
+        driver.set_page_load_timeout(30)
 
-    # Login to Quora to scrape more information
-    login(driver)
+        # Login to Quora to scrape more information
+        login(driver)
 
-    count_author = 0
+        count_author = 0
 
-    # Loop through all popular writers and get all their following section
-    for writer_url in list_of_top_writers:
-        process_following(driver, writer_url)
-        count_author += 1
-        if count_author % 20 == 0:
-            print('Authors processed (for following section) so far: ', count_author)
+        # Loop through all popular writers and get all their following section
+        for writer_url in list_of_following_writers:
+            process_following(driver, writer_url)
+            count_author += 1
+            if count_author % 20 == 0:
+                print('Authors processed (for following section) so far: ', count_author)
 
-    following_list = list(set(following_list))
+        with open(FOLLOWING_OUTPUT_FILE, 'r') as f:
+            for line in f:
+                data = json.loads(line)
+                following_list.append(data)
 
-    for user in list_of_top_writers:
-        with open(FINAL_FILE, "a") as f:
-            f.write("{}\n".format(json.dumps(user)))
-    for user in following_list:
-        with open(FINAL_FILE, "a") as f:
-            f.write("{}\n".format(json.dumps(user)))
+        following_list = list(set(following_list))
 
-    print("Reading the file for each user processing")
+        for user in list_of_top_writers:
+            with open(FINAL_FILE, "a") as f:
+                f.write("{}\n".format(json.dumps(user)))
+        for user in following_list:
+            with open(FINAL_FILE, "a") as f:
+                f.write("{}\n".format(json.dumps(user)))
 
-    with open(FINAL_FILE, "r") as json_file:
-        for line in json_file:
-            data = json.loads(line)
-            list_of_final_users.append(data)
+        print("Reading the file for each user processing")
 
-    print("Begin parsing the answers of all users")
-    # begin processing all the users
-    for user in list_of_final_users:
-        process_user(driver, user)
+        with open(FINAL_FILE, "r") as json_file:
+            for line in json_file:
+                data = json.loads(line)
+                list_of_final_users.append(data)
 
-    # finish operation
-    driver.close()
+        print("Begin parsing the answers of all users")
+        # begin processing all the users
+        for user in list_of_final_users:
+            process_user(driver, user)
+
+        # finish operation
+        driver.close()
+        driver.quit()
+        driver.stop()
