@@ -302,7 +302,6 @@ def process_following(driver, writer_url):
         return
     # do infinite scrolling to get all the followers
     stuck_value = 0
-    driver.save_screenshot("hehe.png")
     # have to scroll until the end of page
     try:
         current_html = driver.find_element_by_class_name('ContentWrapper')
