@@ -157,8 +157,25 @@ def process_user(driver, writer_url):
     current_html = driver.find_element_by_class_name('ContentWrapper')
     current_html = current_html.get_attribute('innerHTML')
     stuck_value = 0
-
+    connection_is_fucked = False
     while(True):
+        if connection_is_fucked:
+            print("REINITIALIZING WEB DRIVER")
+            # Initialize webdriver
+            driver = webdriver.Chrome()
+            driver.maximize_window()
+            driver.set_window_position(0, 0)
+            driver.get('https://www.quora.com/')
+            driver.set_page_load_timeout(30)
+
+            # Login to Quora to scrape more information
+            login(driver)
+            driver.get(url)
+            time.sleep(3)
+            current_html = driver.find_element_by_class_name('ContentWrapper')
+            current_html = current_html.get_attribute('innerHTML')
+            connection_is_fucked = False
+
         prev_html = current_html
         # scroll to the end of page and set some delay --> to get the questions
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -168,20 +185,8 @@ def process_user(driver, writer_url):
             current_html = current_html.get_attribute("innerHTML")
         except:
             print("Remote connection has been closed, try reconnecting again...")
-            print("REINITIALIZING WEB DRIVER")
-            # Initialize webdriver
-            with Display(visible=False):
-                driver = webdriver.Chrome()
-                driver.maximize_window()
-                driver.set_window_position(0, 0)
-                driver.get('https://www.quora.com/')
-                driver.set_page_load_timeout(30)
-
-                # Login to Quora to scrape more information
-                login(driver)
-                driver.get(url)
-                time.sleep(3)
-                continue
+            connection_is_fucked = True
+            continue
 
         if stuck_value > 3:
             break
