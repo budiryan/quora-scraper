@@ -148,6 +148,7 @@ def process_user(driver, writer_url):
     try:
         print("Processing user: ", url)
         driver.get(url)
+        time.sleep(3)
     except TimeoutException as e:
         print("Process user took too long! return: " + str(e))
         return
@@ -167,8 +168,20 @@ def process_user(driver, writer_url):
             current_html = current_html.get_attribute("innerHTML")
         except:
             print("Remote connection has been closed, try reconnecting again...")
-            driver.get(url)
-            continue
+            print("REINITIALIZING WEB DRIVER")
+            # Initialize webdriver
+            with Display(visible=False):
+                driver = webdriver.Chrome()
+                driver.maximize_window()
+                driver.set_window_position(0, 0)
+                driver.get('https://www.quora.com/')
+                driver.set_page_load_timeout(30)
+
+                # Login to Quora to scrape more information
+                login(driver)
+                driver.get(url)
+                time.sleep(3)
+                continue
 
         if stuck_value > 3:
             break
@@ -182,6 +195,7 @@ def process_user(driver, writer_url):
         name_and_signature = driver.find_element_by_class_name('ProfileNameAndSig')
     except:
         print("Cannot find name, skipping the user..")
+        return
     name = name_and_signature.find_element_by_class_name('user').text
     try:
         description = name_and_signature.find_element_by_class_name('UserCredential').text
@@ -354,28 +368,28 @@ if __name__ == '__main__':
         # Login to Quora to scrape more information
         login(driver)
 
-        count_author = 0
+        # count_author = 0
 
-        # Loop through all popular writers and get all their following section
-        for writer_url in list_of_following_writers:
-            process_following(driver, writer_url)
-            count_author += 1
-            if count_author % 20 == 0:
-                print('Authors processed (for following section) so far: ', count_author)
+        # # Loop through all popular writers and get all their following section
+        # for writer_url in list_of_following_writers:
+        #     process_following(driver, writer_url)
+        #     count_author += 1
+        #     if count_author % 20 == 0:
+        #         print('Authors processed (for following section) so far: ', count_author)
 
-        with open(FOLLOWING_OUTPUT_FILE, 'r') as f:
-            for line in f:
-                data = json.loads(line)
-                following_list.append(data)
+        # with open(FOLLOWING_OUTPUT_FILE, 'r') as f:
+        #     for line in f:
+        #         data = json.loads(line)
+        #         following_list.append(data)
 
-        following_list = list(set(following_list))
+        # following_list = list(set(following_list))
 
-        for user in list_of_top_writers:
-            with open(FINAL_FILE, "a") as f:
-                f.write("{}\n".format(json.dumps(user)))
-        for user in following_list:
-            with open(FINAL_FILE, "a") as f:
-                f.write("{}\n".format(json.dumps(user)))
+        # for user in list_of_top_writers:
+        #     with open(FINAL_FILE, "a") as f:
+        #         f.write("{}\n".format(json.dumps(user)))
+        # for user in following_list:
+        #     with open(FINAL_FILE, "a") as f:
+        #         f.write("{}\n".format(json.dumps(user)))
 
         print("Reading the file for each user processing")
 
