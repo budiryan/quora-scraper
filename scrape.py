@@ -162,7 +162,7 @@ def process_user(driver, writer_url):
         if connection_is_fucked:
             print("REINITIALIZING WEB DRIVER")
             # Initialize webdriver
-            driver = webdriver.Firefox()
+            driver = webdriver.Chrome()
             driver.maximize_window()
             driver.set_window_position(0, 0)
             driver.get('https://www.quora.com/')
@@ -364,7 +364,7 @@ def process_following(driver, writer_url):
 if __name__ == '__main__':
     # Initialize webdriver
     with Display(visible=False):
-        driver = webdriver.Firefox()
+        driver = webdriver.Chrome()
         driver.maximize_window()
         driver.set_window_position(0, 0)
         driver.get('https://www.quora.com/')
