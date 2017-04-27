@@ -61,6 +61,7 @@ def login(driver):
     time.sleep(2)
     driver.switch_to_window(window_after)
 
+    driver.save_screenshot('New window error')
     # Enter Email address and submit
     emailInput = driver.find_element_by_xpath("//input[@id='Email']")
     print('Entering email...')
