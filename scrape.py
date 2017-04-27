@@ -180,7 +180,7 @@ def process_user(driver, writer_url):
         prev_html = current_html
         # scroll to the end of page and set some delay --> to get the questions
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(3)
+        time.sleep(8)
         try:
             current_html = driver.find_element_by_class_name('ContentWrapper')
             current_html = current_html.get_attribute("innerHTML")
@@ -189,7 +189,7 @@ def process_user(driver, writer_url):
             connection_is_fucked = True
             continue
 
-        if stuck_value > 3:
+        if stuck_value > 5:
             break
 
         if prev_html == current_html:
@@ -296,7 +296,7 @@ def process_user(driver, writer_url):
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(5)
             current_html = driver.find_element_by_class_name('AnswerListDiv')
-            if stuck_value_answer > 10:
+            if stuck_value_answer > 15:
                 print('stuck value answer too high, break')
                 break
             if prev_html == current_html:
