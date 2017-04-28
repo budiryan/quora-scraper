@@ -51,6 +51,7 @@ def login(driver):
     '''
     wait = WebDriverWait(driver, 30)
     # Find sign-in by Google button and click it
+    driver.save_screenshot('error2.png')
     elem = driver.find_element_by_class_name("google_button")
     elem.click()
     time.sleep(8)
@@ -59,9 +60,7 @@ def login(driver):
 
     # Switch to login popup
     time.sleep(2)
-    driver.switch_to_window(window_after)
-
-    driver.save_screenshot('New window error.png')
+    driver.switch_to_window(window_after
     # Enter Email address and submit
     emailInput = driver.find_element_by_xpath("//input[@id='Email']")
     print('Entering email...')
