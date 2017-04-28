@@ -60,7 +60,7 @@ def login(driver):
 
     # Switch to login popup
     time.sleep(2)
-    driver.switch_to_window(window_after
+    driver.switch_to_window(window_after)
     # Enter Email address and submit
     emailInput = driver.find_element_by_xpath("//input[@id='Email']")
     print('Entering email...')
