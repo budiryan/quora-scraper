@@ -163,7 +163,7 @@ def process_user(driver, writer_url):
         if connection_is_fucked:
             print("REINITIALIZING WEB DRIVER")
             # Initialize webdriver
-            driver = webdriver.Chrome()
+            driver = webdriver.PhantomJS()
             driver.maximize_window()
             driver.set_window_position(0, 0)
             driver.get('https://www.quora.com/')
