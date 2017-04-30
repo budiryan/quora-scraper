@@ -270,8 +270,9 @@ def process_user(driver, writer_url):
     for a in answers_links_href:
         try:
             driver.get(urllib.parse.urljoin(BASE_URL, a))
-        except TimeoutException as e:
-            print("Getting answer link took too long! return: " + str(e))
+        except:
+            # Just skip to the next question if something fails
+            print("Getting answer error!")
             continue
         # Get question text
         # Process each answer, if an answer with the original author is found, break and finish
