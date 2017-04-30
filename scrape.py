@@ -127,7 +127,7 @@ def process_answer_divs(current_html, url, question_text, a):
                 "author_link": answer_author_link,
                 "views": answer_views,
                 "upvotes": answer_upvotes,
-                "question_title": question_text.decode("utf-8"),
+                "question_title": question_text,
                 "question_link": urllib.parse.urljoin(BASE_URL, a),
             }
             answer_retrieved = True
