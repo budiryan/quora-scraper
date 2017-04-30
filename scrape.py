@@ -195,6 +195,8 @@ def process_user(driver, writer_url):
             # if after scrolling nothing changes, that means it is stuck
             stuck_value += 1
 
+    # add another delay here just to make sure all of them got loaded
+    time.sleep(2)
     # have to get the info of each user
     try:
         name_and_signature = driver.find_element_by_class_name('ProfileNameAndSig')
@@ -281,7 +283,11 @@ def process_user(driver, writer_url):
         except:
             continue
         try:
-            question_text = driver.find_element_by_class_name('rendered_qtext').text.encode("utf-8")
+            # question_text = driver.find_element_by_class_name('rendered_qtext').text.encode("utf-8")
+            question = driver.find_element_by_class_name('QuestionTextInlineEditor')
+            question_soup = BeautifulSoup(question.get_attribute('innerHTML').encode('utf-8'), 'html.parser')
+            question_text = question_soup.find('span', class_='rendered_qtext').get_text()
+            # answer_div.find('span', class_='rendered_qtext').get_text()
         except:
             continue
 
@@ -405,7 +411,6 @@ if __name__ == '__main__':
             list_of_final_users.append(data)
 
     print("Begin parsing the answers of all users")
-    # begin processing all the users
     for user in list_of_final_users:
         process_user(driver, user)
 
