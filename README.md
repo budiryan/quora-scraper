@@ -69,3 +69,6 @@ python scrape.py -v user_links.json -f
 
 ## Getting the crawled data
 All the crawled data are stored in: `result_answers.json` for answers and `results_users.json` for users.
+
+## Contributor
+Budi RYAN (https://github.com/budiryan)
