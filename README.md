@@ -46,7 +46,7 @@ pip install -r requirements.txt
 ## Full Usage
 Assuming all dependencies are installed and the you are in a python's virtual environment
 ```
-Full usage: scrape.py [-h] (-u USERNAME | -v FILE CONTAINING USERNAMES) [-f]
+Full usage: python scrape.py [-h] (-u USERNAME | -v FILE CONTAINING USERNAMES) [-f]
 ```
 
 ## Examples
