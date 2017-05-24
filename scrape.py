@@ -3,17 +3,17 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-from pyvirtualdisplay import Display
 from bs4 import BeautifulSoup
 import urllib
 import time
 import json
 import re
 import os
+import argparse
 
 
 # Put your email and password in these variables, make sure to have the quotation marks around them
-# this is a dummy account
+# This is a dummy account, you may change it to yours if you want
 YOUR_EMAIL_ADDRESS = "bbudihaha@gmail.com"
 YOUR_PASSWORD = "budihaha12345"
 
@@ -22,25 +22,12 @@ BASE_URL = 'https://www.quora.com'
 
 # File paths
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
-FILE_DIRECTORY = os.path.join(PROJECT_ROOT, 'user_links.json')
-FOLLOWING_DIRECTORY = os.path.join(PROJECT_ROOT, 'user_links2.json')
-USER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'users.json')
-ANSWER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'answers.json')
-FOLLOWING_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'following.json')
+USER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'result_users.json')
+ANSWER_OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'result_answers.json')
 FINAL_FILE = os.path.join(PROJECT_ROOT, 'final_users.json')
 
-
+list_of_writers = []
 following_list = []
-list_of_top_writers = []
-list_of_final_users = []
-list_of_following_writers = []
-
-# load a list of top writers on Quora for scraping
-with open(FILE_DIRECTORY, "r") as f:
-    list_of_top_writers = json.load(f)
-
-with open(FOLLOWING_DIRECTORY, "r") as f:
-    list_of_following_writers = json.load(f)
 
 
 def login(driver):
@@ -49,9 +36,9 @@ def login(driver):
     - desc: login to quora
     - Output: void
     '''
+    print("Logging in to Quora...")
     wait = WebDriverWait(driver, 30)
     # Find sign-in by Google button and click it
-    driver.save_screenshot('error2.png')
     elem = driver.find_element_by_class_name("google_button")
     elem.click()
     time.sleep(8)
@@ -151,16 +138,22 @@ def process_user(driver, writer_url):
         time.sleep(3)
     except:
         print("Process user took too long! return: ")
-        driver.save_screenshot('error_user.png')
+        return
+
+    # Test the existence of the user
+    try:
+        name_and_signature = driver.find_element_by_class_name('ProfileNameAndSig')
+    except:
+        print("User does not exist! Returning...")
         return
 
     # have to scroll until the end of page
     current_html = driver.find_element_by_class_name('ContentWrapper')
     current_html = current_html.get_attribute('innerHTML')
     stuck_value = 0
-    connection_is_fucked = False
+    disconnected = False
     while(True):
-        if connection_is_fucked:
+        if disconnected:
             print("REINITIALIZING WEB DRIVER")
             # Initialize webdriver
             driver = webdriver.PhantomJS()
@@ -175,7 +168,7 @@ def process_user(driver, writer_url):
             time.sleep(3)
             current_html = driver.find_element_by_class_name('ContentWrapper')
             current_html = current_html.get_attribute('innerHTML')
-            connection_is_fucked = False
+            disconnected = False
 
         prev_html = current_html
         # scroll to the end of page and set some delay --> to get the questions
@@ -186,7 +179,7 @@ def process_user(driver, writer_url):
             current_html = current_html.get_attribute("innerHTML")
         except:
             print("Remote connection has been closed, try reconnecting again...")
-            connection_is_fucked = True
+            disconnected = True
             continue
 
         if stuck_value > 5:
@@ -251,6 +244,7 @@ def process_user(driver, writer_url):
         'num_following': num_following,
         'num_topics': num_topics
     }
+
     with open(USER_OUTPUT_FILE, "a") as f:
         f.write("{}\n".format(json.dumps(new_data)))
         print('AUTHOR ADDED: ', name)
@@ -268,7 +262,7 @@ def process_user(driver, writer_url):
     # no answer at all, no need to collect anything
     if len(answers_links) == 0:
         return
-    print('begin collecting answers of: ', name)
+    print('Begin collecting answers of: ', name)
     count_answers = 0
     for a in answers_links_href:
         try:
@@ -276,7 +270,6 @@ def process_user(driver, writer_url):
         except:
             # Just skip to the next question if something fails
             print("Getting answer error!")
-            driver.save_screenshot('error_answer.png')
             continue
         # Get question text
         # Process each answer, if an answer with the original author is found, break and finish
@@ -323,6 +316,7 @@ def process_following(driver, writer_url):
     '''
     print('Now processing following section of: ', writer_url)
     url = urllib.parse.urljoin(BASE_URL, writer_url + '/following')
+    print('url following is: ', url)
     try:
         driver.get(url)
     except TimeoutException as e:
@@ -364,59 +358,73 @@ def process_following(driver, writer_url):
         fake_links.append(link.find('a')['href'])
     users_links = [u['href'] for u in users_links if u['href'] not in fake_links]
     for a in users_links:
-        if (a not in list_of_top_writers) and (a not in following_list):
-            with open(FOLLOWING_OUTPUT_FILE, "a") as f:
-                # Add to file
-                f.write("{}\n".format(json.dumps(a)))
+        # if (a not in list_of_top_writers) and (a not in following_list):
+            # with open(FOLLOWING_OUTPUT_FILE, "a") as f:
+            #     # Add to file
+            #     f.write("{}\n".format(json.dumps(a)))
+        if a not in following_list and a not in list_of_writers:
+            following_list.append(a)
 
 
-if __name__ == '__main__':
+def initialize():
     # Initialize webdriver
-    # with Display(visible=True):
+    print("Begin initializing connection to webdriver")
     driver = webdriver.PhantomJS()
     driver.maximize_window()
     driver.set_window_position(0, 0)
-    driver.get('https://www.quora.com/')
+    driver.get(BASE_URL)
     driver.set_page_load_timeout(30)
 
     # Login to Quora to scrape more information
     login(driver)
+    return driver
 
-    # count_author = 0
 
-    # # Loop through all popular writers and get all their following section
-    # for writer_url in list_of_following_writers:
-    #     process_following(driver, writer_url)
-    #     count_author += 1
-    #     if count_author % 20 == 0:
-    #         print('Authors processed (for following section) so far: ', count_author)
-
-    # with open(FOLLOWING_OUTPUT_FILE, 'r') as f:
-    #     for line in f:
-    #         data = json.loads(line)
-    #         following_list.append(data)
-
-    # following_list = list(set(following_list))
-
-    # for user in list_of_top_writers:
-    #     with open(FINAL_FILE, "a") as f:
-    #         f.write("{}\n".format(json.dumps(user)))
-    # for user in following_list:
-    #     with open(FINAL_FILE, "a") as f:
-    #         f.write("{}\n".format(json.dumps(user)))
-
-    print("Reading the file for each user processing")
-
-    with open(FINAL_FILE, "r") as json_file:
-        for line in json_file:
-            data = json.loads(line)
-            list_of_final_users.append(data)
-
-    print("Begin parsing the answers of all users")
-    for user in list_of_final_users:
-        process_user(driver, user)
-
+def finish(driver):
     # finish operation
     driver.close()
     driver.quit()
-    driver.stop()
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Quora Scraper')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-u', '--username', type=str,
+                       help='Crawl 1 specific user, return error if user is not found')
+    group.add_argument('-v', '--usernames', type=str,
+                       help='Crawl all usernames specified in a file (only json format separated by newline is supported!)')
+    parser.add_argument('-f', '--following', action='store_true',
+                        help='Add this flag to also crawl the data from the following section')
+    args = parser.parse_args()
+    driver = initialize()
+
+    # Mode 1, only one user needs to be scraped
+    if args.username is not None:
+        username_url = '/profile/' + args.username
+        process_user(driver, username_url)
+        print('Finished getting all the answers for the user')
+        if args.following:
+            # Also crawl the following section of that user
+            process_following(driver, username_url)
+            # process users in following_list
+            print('Users to be processed: ', len(following_list))
+            for user in following_list:
+                process_user(driver, user)
+
+    # Mode 2, crawl all usernames specified in a file
+    elif args.usernames is not None:
+        try:
+            f = open(args.usernames, 'r')
+        except:
+            print("File not found! Exiting program...")
+        for line in f:
+            list_of_writers.append('/profile/' + line.strip())
+        for writer in list_of_writers:
+            process_user(driver, writer)
+        if args.following:
+            # Also crawl the following section of that user
+            for writer in list_of_writers:
+                process_following(driver, writer)
+            for user in following_list:
+                process_user(driver, user)
+    finish(driver)
